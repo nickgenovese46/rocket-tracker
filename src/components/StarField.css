@@ -1,0 +1,19 @@
+.starfield {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle infinite alternate ease-in-out;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.08; transform: scale(0.8); }
+  to   { opacity: 0.6;  transform: scale(1.2); }
+}
