@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo} from 'react';
 import { useNavigate } from 'react-router-dom';
 import './RocketBuilder.css';
 
@@ -176,27 +176,6 @@ const budget = useMemo(() => {
   if (!destination) return null;
   return Math.round(destination.baseBudget + payloadMass * destination.budgetPerTonne);
 }, [destination, payloadMass]);
-
-const [availableYears, setAvailableYears] = useState(() => {
-  // Initialize immediately with last 20 years so dropdown always works
-  const now = new Date().getFullYear();
-  return Array.from({ length: 20 }, (_, i) => now - i);
-});
-
-useEffect(() => {
-  fetch('https://ll.thespacedevs.com/2.2.0/launch/previous/?limit=1&ordering=net&mode=list')
-    .then(r => r.json())
-    .then(data => {
-      if (data.results?.[0]?.net) {
-        const oldest = new Date(data.results[0].net).getFullYear();
-        const newest = new Date().getFullYear();
-        setAvailableYears(
-          Array.from({ length: newest - oldest + 1 }, (_, i) => newest - i)
-        );
-      }
-    })
-    .catch(() => {}); // fallback already set in useState initializer
-}, []);
 
 const optimalMission = useMemo(() => {
   if (!launched || !destination || !payload || !budget) return null;

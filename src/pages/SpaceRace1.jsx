@@ -1,34 +1,35 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { feature } from 'topojson-client';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { getAgencyCountryStats, getActiveLaunches, getPreviousLaunches } from '../services/api';
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, Bar,
-  ResponsiveContainer
-} from 'recharts';
-import { useNavigate } from 'react-router-dom';
 import './SpaceRace.css';
 
-// country_code values from the agency objects in Launch Library 2 API
+const COUNTRY_NUMERIC = {
+  USA: 840, RUS: 643, CHN: 156, FRA: 250, GUF: 312,
+  IND: 356, JPN: 392, NZL: 554, KAZ: 398, IRN: 364,
+  KOR: 410, ISR: 376, AUS: 36,  PRK: 408, DEU: 276,
+  GBR: 826, ITA: 380, UKR: 804,
+};
+
 const COUNTRIES = [
-  { code: 'USA', name: 'United States',         flag: '🇺🇸', color: '#60A5FA', agencyCodes: ['USA'] },
-  { code: 'RUS', name: 'Russia / Soviet Union',  flag: '🇷🇺', color: '#A78BFA', agencyCodes: ['RUS', 'SUN', 'UKR'] },
-  { code: 'CHN', name: 'China',                  flag: '🇨🇳', color: '#F87171', agencyCodes: ['CHN'] },
-  { code: 'EUR', name: 'Europe',                 flag: '🇪🇺', color: '#FBB840', agencyCodes: ['FRA', 'GUF', 'DEU', 'GBR', 'ITA', 'EUR', 'ESA'] },
-  { code: 'IND', name: 'India',                  flag: '🇮🇳', color: '#FB923C', agencyCodes: ['IND'] },
-  { code: 'JPN', name: 'Japan',                  flag: '🇯🇵', color: '#34D399', agencyCodes: ['JPN'] },
-  { code: 'NZL', name: 'New Zealand',            flag: '🇳🇿', color: '#2EE8B8', agencyCodes: ['NZL'] },
-  { code: 'KOR', name: 'South Korea',            flag: '🇰🇷', color: '#22D3EE', agencyCodes: ['KOR'] },
-  { code: 'IRN', name: 'Iran',                   flag: '🇮🇷', color: '#F472B6', agencyCodes: ['IRN'] },
-  { code: 'ISR', name: 'Israel',                 flag: '🇮🇱', color: '#818CF8', agencyCodes: ['ISR'] },
-  { code: 'AUS', name: 'Australia',              flag: '🇦🇺', color: '#C084FC', agencyCodes: ['AUS'] },
+  { code: 'USA', name: 'United States',        flag: '🇺🇸', color: '#60A5FA', agencyCodes: ['USA'] },
+  { code: 'RUS', name: 'Russia / Soviet Union', flag: '🇷🇺', color: '#A78BFA', agencyCodes: ['RUS', 'SUN', 'UKR'] },
+  { code: 'CHN', name: 'China',                 flag: '🇨🇳', color: '#F87171', agencyCodes: ['CHN'] },
+  { code: 'EUR', name: 'Europe',                flag: '🇪🇺', color: '#FBB840', agencyCodes: ['FRA', 'GUF', 'DEU', 'GBR', 'ITA', 'EUR', 'ESA'] },
+  { code: 'IND', name: 'India',                 flag: '🇮🇳', color: '#FB923C', agencyCodes: ['IND'] },
+  { code: 'JPN', name: 'Japan',                 flag: '🇯🇵', color: '#34D399', agencyCodes: ['JPN'] },
+  { code: 'NZL', name: 'New Zealand',           flag: '🇳🇿', color: '#2EE8B8', agencyCodes: ['NZL'] },
+  { code: 'KOR', name: 'South Korea',           flag: '🇰🇷', color: '#22D3EE', agencyCodes: ['KOR'] },
+  { code: 'IRN', name: 'Iran',                  flag: '🇮🇷', color: '#F472B6', agencyCodes: ['IRN'] },
+  { code: 'ISR', name: 'Israel',                flag: '🇮🇱', color: '#818CF8', agencyCodes: ['ISR'] },
+  { code: 'AUS', name: 'Australia',             flag: '🇦🇺', color: '#C084FC', agencyCodes: ['AUS'] },
 ];
 
-// Numeric IDs for each country group on the map
 const COUNTRY_GROUP_NUMERICS = {
   USA: [840],
   RUS: [643, 804],
   CHN: [156],
-  EUR: [250, 312, 276, 826, 380, 208, 528, 724, 620, 56, 40, 756, 752, 578, 246, 233, 428, 440, 616, 703, 705, 191, 703],
+  EUR: [250, 312, 276, 826, 380, 208, 528, 724, 620, 56, 40, 756, 752, 578, 246, 233, 428, 440, 616, 703, 705, 191],
   IND: [356],
   JPN: [392],
   NZL: [554],
@@ -46,59 +47,48 @@ const STAT_TABS = [
 ];
 
 export default function SpaceRace() {
-  const [agencies, setAgencies]         = useState([]);
-  const [upcoming, setUpcoming]         = useState([]);
-  const [geoFeatures, setGeoFeatures]   = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [selected, setSelected]         = useState(null);
-  const [statTab, setStatTab]           = useState('total');
+  const [agencies, setAgencies]       = useState([]);
+  const [upcoming, setUpcoming]       = useState([]);
+  const [geoFeatures, setGeoFeatures] = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [selected, setSelected]       = useState(null);
+  const [statTab, setStatTab]         = useState('total');
   const [hoveredCountry, setHoveredCountry] = useState(null);
-  const [timelineData, setTimelineData] = useState([]);
+  const [timelineData, setTimelineData]     = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
-  const navigate = useNavigate();
 
-  // Fetch world geometry (separate effect)
   useEffect(() => {
-    // Use 50m for better resolution and cleaner outlines
     fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
       .then(r => r.json())
       .then(world => setGeoFeatures(feature(world, world.objects.countries).features))
       .catch(() => {
-        // Fallback to 110m
         fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
           .then(r => r.json())
           .then(world => setGeoFeatures(feature(world, world.objects.countries).features))
           .catch(() => {});
       });
+
+    Promise.all([getAgencyCountryStats(), getActiveLaunches()])
+      .then(([agencyData, upcomingData]) => {
+        setAgencies(agencyData);
+        setUpcoming(upcomingData);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
-  // Fetch timeline pages (separate effect)
+  // Fetch launch history for timeline — 10 pages × 100 = 1000 launches
   useEffect(() => {
-    const fetchTimeline = async () => {
-      try {
-        const pages = await Promise.all([
-          getPreviousLaunches(100, 0),
-          getPreviousLaunches(100, 100),
-          getPreviousLaunches(100, 200),
-          getPreviousLaunches(100, 300),
-          getPreviousLaunches(100, 400),
-          getPreviousLaunches(100, 500),
-          getPreviousLaunches(100, 600),
-          getPreviousLaunches(100, 700),
-          getPreviousLaunches(100, 800),
-          getPreviousLaunches(100, 900),
-        ]);
+    const offsets = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+    Promise.all(offsets.map(offset => getPreviousLaunches(100, offset)))
+      .then(pages => {
         const all = pages.flatMap(p => p.results || []);
-
-        // Group by year, then by country code
         const byYear = {};
         all.forEach(l => {
           if (!l.net) return;
           const year = new Date(l.net).getFullYear();
           if (year < 1955 || year > new Date().getFullYear()) return;
           const rawCode = (l.pad?.location?.country_code || '').trim().toUpperCase();
-
-          // Map raw code to our country groups (use agencyCodes present in COUNTRIES)
           let countryCode = 'OTHER';
           for (const country of COUNTRIES) {
             if (country.agencyCodes.some(pc => rawCode === pc || rawCode.startsWith(pc))) {
@@ -106,75 +96,36 @@ export default function SpaceRace() {
               break;
             }
           }
-
           if (!byYear[year]) byYear[year] = {};
           byYear[year][countryCode] = (byYear[year][countryCode] || 0) + 1;
         });
-
-        // Convert to array for Recharts
         const data = Object.entries(byYear)
           .map(([year, counts]) => ({ year: parseInt(year), ...counts }))
           .sort((a, b) => a.year - b.year);
-
         setTimelineData(data);
         setTimelineLoading(false);
-      } catch (e) {
-        setTimelineLoading(false);
-      }
-    };
-
-    fetchTimeline();
-  }, []);
-
-  // Fetch agencies and upcoming launches (separate effect)
-  useEffect(() => {
-    Promise.all([getAgencyCountryStats(), getActiveLaunches()])
-      .then(([agencyData, upcomingData]) => {
-        setAgencies(agencyData);
-        setUpcoming(upcomingData);
-        setLoading(false);
-
-        // TEMPORARY DEBUG — remove after diagnosis
-        console.log('Total agencies returned:', agencyData.length);
-        console.log('Sample agency objects:', agencyData.slice(0, 5).map(a => ({
-          name: a.name,
-          country_code: a.country_code,
-          total_launch_count: a.total_launch_count,
-          successful_launches: a.successful_launches,
-        })));
       })
-      .catch(err => {
-        // Log and allow the UI to remain in a safe state
-        console.error('Failed to load agency or launch data', err);
-        setLoading(false);
-      });
+      .catch(() => setTimelineLoading(false));
   }, []);
 
-  // Aggregate per country from agency records
   const countryStats = useMemo(() => {
     return COUNTRIES.map(country => {
       const matched = agencies.filter(a => {
-        const codes = (a.country_code || '')
-          .split(',')
-          .map(c => c.trim().toUpperCase());
+        const codes = (a.country_code || '').split(',').map(c => c.trim().toUpperCase());
         return country.agencyCodes.some(target =>
           codes.some(code => code === target || code.startsWith(target))
         );
       });
-
       const total      = matched.reduce((s, a) => s + (a.total_launch_count  || 0), 0);
       const successful = matched.reduce((s, a) => s + (a.successful_launches || 0), 0);
       const rate       = total > 0 ? Math.round((successful / total) * 100) : 0;
-
       const upcomingCount = upcoming.filter(l => {
         const code = (l.pad?.location?.country_code || '').trim().toUpperCase();
         return country.agencyCodes.some(c => code === c || code.startsWith(c));
       }).length;
-
       const topAgencies = [...matched]
         .sort((a, b) => (b.total_launch_count || 0) - (a.total_launch_count || 0))
         .slice(0, 5);
-
       return { ...country, total, successful, rate, upcomingCount, topAgencies };
     }).filter(c => c.total > 0 || c.upcomingCount > 0);
   }, [agencies, upcoming]);
@@ -202,20 +153,13 @@ export default function SpaceRace() {
     return getVal(c).toLocaleString();
   }
 
-  const maxVal = sorted.length > 0 ? Math.max(getVal(sorted[0]), 1) : 1;
-
-  // Build numeric → country map for choropleth
-  const colorMap = useMemo(() => {
+  const maxVal      = sorted.length > 0 ? Math.max(getVal(sorted[0]), 1) : 1;
+  const colorMap    = useMemo(() => {
     const maxTotal = Math.max(...countryStats.map(c => c.total), 1);
     const map = {};
     countryStats.forEach(c => {
-      const numerics = COUNTRY_GROUP_NUMERICS[c.code] || [];
-      numerics.forEach(numId => {
-        map[numId] = {
-          color:     c.color,
-          intensity: Math.min(1, c.total / maxTotal),
-          country:   c,
-        };
+      (COUNTRY_GROUP_NUMERICS[c.code] || []).forEach(numId => {
+        map[numId] = { color: c.color, intensity: Math.min(1, c.total / maxTotal), country: c };
       });
     });
     return map;
@@ -225,7 +169,6 @@ export default function SpaceRace() {
   const globalTotal     = countryStats.reduce((s, c) => s + c.total, 0);
   const globalSuccess   = countryStats.reduce((s, c) => s + c.successful, 0);
   const globalRate      = globalTotal > 0 ? Math.round((globalSuccess / globalTotal) * 100) : 0;
-  const totalAgencies   = agencies.length;
 
   if (loading) return <div className="page-state">Loading Space Race data...</div>;
 
@@ -237,9 +180,8 @@ export default function SpaceRace() {
           <div className="sr-eyebrow">COUNTRY VS COUNTRY</div>
           <h1 className="sr-title">Space Race</h1>
           <p className="sr-sub">
-            Which nation leads the race to space? Stats from{' '}
-            {totalAgencies} agencies spanning the full history of spaceflight.
-            Click any country to explore further.
+            Which nation leads the race to space? Stats from {agencies.length} agencies
+            spanning the full history of spaceflight. Click any country to explore.
           </p>
         </div>
         {selected && (
@@ -258,7 +200,7 @@ export default function SpaceRace() {
 
       <div className="sr-layout">
 
-        {/* LEFT — LEADERBOARD */}
+        {/* LEFT — LEADERBOARD + TIMELINE */}
         <div className="sr-left">
           <div className="sr-stat-tabs">
             {STAT_TABS.map(t => (
@@ -276,12 +218,12 @@ export default function SpaceRace() {
             RANKED BY {STAT_TABS.find(t => t.id === statTab)?.label.toUpperCase()}
           </div>
 
+          {/* COUNTRY CARDS */}
           <div className="lb-list">
             {sorted.map((country, i) => {
               const val        = getVal(country);
               const isSelected = selected === country.code;
               const isOther    = selected && !isSelected;
-
               return (
                 <div
                   key={country.code}
@@ -291,7 +233,6 @@ export default function SpaceRace() {
                 >
                   <div className="lb-card-bar" style={{ background: country.color }} />
                   <div className="lb-card-body">
-
                     <div className="lb-card-top">
                       <div className="lb-rank-name">
                         <span className="lb-rank" style={{ color: country.color }}>#{i + 1}</span>
@@ -302,17 +243,9 @@ export default function SpaceRace() {
                         {formatVal(country)}
                       </div>
                     </div>
-
                     <div className="lb-bar-wrap">
-                      <div
-                        className="lb-bar"
-                        style={{
-                          width: `${(val / maxVal) * 100}%`,
-                          background: country.color,
-                        }}
-                      />
+                      <div className="lb-bar" style={{ width: `${(val / maxVal) * 100}%`, background: country.color }} />
                     </div>
-
                     <div className="lb-sub-stats">
                       <span className="lb-sub-item">
                         <span className="lb-sub-label">Total</span>
@@ -333,55 +266,14 @@ export default function SpaceRace() {
                           <span className="lb-sub-sep">·</span>
                           <span className="lb-sub-item">
                             <span className="lb-sub-label">Upcoming</span>
-                            <span className="lb-sub-val" style={{ color: country.color }}>
-                              {country.upcomingCount}
-                            </span>
+                            <span className="lb-sub-val" style={{ color: country.color }}>{country.upcomingCount}</span>
                           </span>
                         </>
                       )}
                     </div>
-
                     {isSelected && country.topAgencies.length > 0 && (
                       <div className="lb-agencies">
                         <div className="lb-agencies-label">TOP AGENCIES</div>
-
-                        {/* Mini bar chart */}
-                        <ResponsiveContainer width="100%" height={80}>
-                          <AreaChart
-                            data={country.topAgencies.map(a => ({
-                              name: a.abbrev || a.name.split(' ')[0],
-                              count: a.total_launch_count || 0,
-                            }))}
-                            margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
-                          >
-                            <XAxis
-                              dataKey="name"
-                              tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
-                              axisLine={false}
-                              tickLine={false}
-                            />
-                            <YAxis hide />
-                            <Tooltip
-                              cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                              content={({ active, payload }) => {
-                                if (!active || !payload?.length) return null;
-                                return (
-                                  <div style={{
-                                    background: 'var(--bg-surface)',
-                                    border: '1px solid var(--border-active)',
-                                    borderRadius: 6, padding: '6px 10px',
-                                    fontSize: 11, color: 'var(--text-primary)'
-                                  }}>
-                                    {payload[0].payload.name}: {payload[0].value.toLocaleString()} launches
-                                  </div>
-                                );
-                              }}
-                            />
-                            <Bar dataKey="count" radius={[3,3,0,0]} fill={country.color} opacity={0.8} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-
-                        {/* Agency rows */}
                         {country.topAgencies.map(a => (
                           <div key={a.id} className="lb-agency-row">
                             <span className="lb-agency-name">{a.name}</span>
@@ -390,32 +282,13 @@ export default function SpaceRace() {
                             </span>
                           </div>
                         ))}
-
-                        {/* Links */}
-                        <div className="lb-agency-links">
-                          {country.topAgencies[0]?.website && (
-                            <a
-                              href={country.topAgencies[0].website}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="lb-link"
-                              onClick={e => e.stopPropagation()}
-                              style={{ color: country.color }}
-                            >
-                              Agency website ↗
-                            </a>
-                          )}
-                          <button
-                            className="lb-archive-link"
-                            onClick={e => {
-                              e.stopPropagation();
-                              navigate('/archive');
-                            }}
-                            style={{ color: country.color }}
-                          >
-                            Browse launches in archive →
-                          </button>
-                        </div>
+                        {country.topAgencies[0]?.website && (
+                          <a href={country.topAgencies[0].website} target="_blank" rel="noreferrer"
+                            className="lb-link" onClick={e => e.stopPropagation()}
+                            style={{ color: country.color }}>
+                            Primary agency website ↗
+                          </a>
+                        )}
                       </div>
                     )}
                   </div>
@@ -423,108 +296,99 @@ export default function SpaceRace() {
               );
             })}
           </div>
-        </div>
 
-              {/* LAUNCH TIMELINE */}
-            <div className="sr-timeline">
-              <div className="sr-timeline-header">
-                <div className="sr-section-label">
-                  LAUNCHES BY YEAR — 1,000 MOST RECENT RECORDS
+          {/* TIMELINE — below leaderboard */}
+          <div className="sr-timeline">
+            <div className="sr-timeline-header">
+              <div className="sr-section-label">LAUNCH HISTORY BY YEAR</div>
+              {selected && (
+                <div className="sr-timeline-hint" style={{ color: selectedCountry?.color }}>
+                  {selectedCountry?.flag} {selectedCountry?.name} highlighted
                 </div>
-                {selected && (
-                  <div className="sr-timeline-hint">
-                    {selectedCountry?.flag} {selectedCountry?.name} highlighted
-                  </div>
-                )}
-              </div>
-
-              {timelineLoading ? (
-                <div className="sr-timeline-loading">Loading timeline...</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-              <AreaChart
-                data={timelineData}
-                margin={{ top: 8, right: 16, left: -20, bottom: 0 }}
-              >
-                <XAxis
-                  dataKey="year"
-                  tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null;
-                    const total = payload.reduce((s, p) => s + (p.value || 0), 0);
-                    return (
-                      <div style={{
-                        background: 'var(--bg-surface)',
-                        border: '1px solid var(--border-active)',
-                        borderRadius: 8, padding: '10px 14px',
-                        fontSize: 12, color: 'var(--text-primary)',
-                        minWidth: 160,
-                      }}>
-                        <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-                        {payload
-                          .filter(p => p.value > 0)
-                          .sort((a, b) => b.value - a.value)
-                          .map(p => {
-                            const country = COUNTRIES.find(c => c.code === p.dataKey);
-                            return (
-                              <div key={p.dataKey} style={{
-                                display: 'flex', justifyContent: 'space-between',
-                                gap: 12, color: p.fill, marginBottom: 2,
-                              }}>
-                                <span>{country?.flag} {country?.name || p.dataKey}</span>
-                                <span style={{ fontWeight: 600 }}>{p.value}</span>
-                              </div>
-                            );
-                          })}
-                        <div style={{
-                          borderTop: '1px solid rgba(255,255,255,0.1)',
-                          marginTop: 6, paddingTop: 6,
-                          color: 'var(--text-secondary)',
-                          display: 'flex', justifyContent: 'space-between',
-                        }}>
-                          <span>Total</span>
-                          <span style={{ fontWeight: 700 }}>{total}</span>
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                {COUNTRIES.map(country => (
-                  <Area
-                    key={country.code}
-                    type="monotone"
-                    dataKey={country.code}
-                    stackId="a"
-                    stroke={country.color}
-                    fill={country.color}
-                    fillOpacity={selected
-                      ? selected === country.code ? 0.5 : 0.04
-                      : 0.25}
-                    strokeOpacity={selected
-                      ? selected === country.code ? 1 : 0.1
-                      : 0.7}
-                    strokeWidth={selected === country.code ? 2 : 1}
-                    onClick={() => setSelected(
-                      selected === country.code ? null : country.code
-                    )}
-                    style={{ cursor: 'pointer' }}
-                  />
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
               )}
             </div>
+            {timelineLoading ? (
+              <div className="sr-timeline-loading">Loading timeline...</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={timelineData} margin={{ top: 8, right: 8, left: -28, bottom: 0 }}>
+                  <XAxis
+                    dataKey="year"
+                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const total = payload.reduce((s, p) => s + (p.value || 0), 0);
+                      return (
+                        <div style={{
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-active)',
+                          borderRadius: 8, padding: '10px 14px',
+                          fontSize: 11, color: 'var(--text-primary)', minWidth: 150,
+                        }}>
+                          <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
+                          {payload
+                            .filter(p => p.value > 0)
+                            .sort((a, b) => b.value - a.value)
+                            .map(p => {
+                              const country = COUNTRIES.find(c => c.code === p.dataKey);
+                              return (
+                                <div key={p.dataKey} style={{
+                                  display: 'flex', justifyContent: 'space-between',
+                                  gap: 10, color: p.fill, marginBottom: 2,
+                                }}>
+                                  <span>{country?.flag} {country?.name || p.dataKey}</span>
+                                  <span style={{ fontWeight: 600 }}>{p.value}</span>
+                                </div>
+                              );
+                            })}
+                          <div style={{
+                            borderTop: '1px solid rgba(255,255,255,0.1)',
+                            marginTop: 5, paddingTop: 5,
+                            color: 'var(--text-secondary)',
+                            display: 'flex', justifyContent: 'space-between',
+                          }}>
+                            <span>Total</span>
+                            <span style={{ fontWeight: 700 }}>{total}</span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  {COUNTRIES.map(country => (
+                    <Area
+                      key={country.code}
+                      type="monotone"
+                      dataKey={country.code}
+                      stackId="a"
+                      stroke={country.color}
+                      fill={country.color}
+                      fillOpacity={selected
+                        ? selected === country.code ? 0.5  : 0.03
+                        : 0.22}
+                      strokeOpacity={selected
+                        ? selected === country.code ? 1.0  : 0.08
+                        : 0.65}
+                      strokeWidth={selected === country.code ? 2 : 1}
+                      onClick={() => setSelected(selected === country.code ? null : country.code)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
 
         {/* RIGHT — MAP + LEGEND */}
         <div className="sr-right">
@@ -534,32 +398,19 @@ export default function SpaceRace() {
                 ? `${selectedCountry?.flag} ${selectedCountry?.name} — ${selectedCountry?.total.toLocaleString()} total launches`
                 : 'Brighter = more launches. Click a country on the map or in the list.'}
             </div>
-
-            <svg
-              viewBox="0 20 960 440"
-              className="sr-map-svg"
-            >
-              <rect width="960" height="440" fill="#020D1F" />
-
+            <svg viewBox="0 0 960 520" className="sr-map-svg">
+              <rect width="960" height="520" fill="#020D1F" />
               {geoFeatures.map((feat, i) => {
                 const numId = parseInt(feat.id);
                 const entry = colorMap[numId];
                 const geo   = feat.geometry;
                 if (!geo) return null;
-
-                // Reproject using pixel coords for 960×480
-                const toPixel = (lat, lng) => ({
-                  x: ((parseFloat(lng) + 180) / 360) * 960,
-                  y: ((90 - parseFloat(lat)) / 180) * 480,
-                });
-
                 const toPath = (coordinates) =>
                   coordinates.map(ring => {
-                    let d = '';
-                    let prevX = null;
+                    let d = ''; let prevX = null;
                     for (let i = 0; i < ring.length; i++) {
                       const x = ((parseFloat(ring[i][0]) + 180) / 360) * 960;
-                      const y = ((90 - parseFloat(ring[i][1])) / 180) * 480;
+                      const y = ((90 - parseFloat(ring[i][1])) / 180) * 520;
                       if (i === 0 || (prevX !== null && Math.abs(x - prevX) > 480)) {
                         d += `M${x.toFixed(1)},${y.toFixed(1)}`;
                       } else {
@@ -569,17 +420,10 @@ export default function SpaceRace() {
                     }
                     return d + 'Z';
                   }).join(' ');
-
                 const polygons = geo.type === 'Polygon'
                   ? [geo.coordinates]
-                  : geo.type === 'MultiPolygon'
-                  ? geo.coordinates : [];
-
-                let fill    = '#0A1E35';
-                let stroke  = '#132840';
-                let sWidth  = 0.5;
-                let opacity = 1;
-
+                  : geo.type === 'MultiPolygon' ? geo.coordinates : [];
+                let fill = '#0A1E35', stroke = '#132840', sWidth = 0.5, opacity = 1;
                 if (entry) {
                   fill    = entry.color;
                   opacity = selected
@@ -588,16 +432,12 @@ export default function SpaceRace() {
                   stroke  = entry.color;
                   sWidth  = 0.8;
                 }
-
                 return polygons.map((coords, j) => (
                   <path
                     key={`${i}-${j}`}
                     d={toPath(coords)}
-                    fill={fill}
-                    fillOpacity={opacity}
-                    stroke={stroke}
-                    strokeWidth={sWidth}
-                    strokeOpacity={entry ? 0.5 : 0.4}
+                    fill={fill} fillOpacity={opacity}
+                    stroke={stroke} strokeWidth={sWidth} strokeOpacity={entry ? 0.5 : 0.4}
                     style={{ cursor: entry ? 'pointer' : 'default' }}
                     onMouseEnter={() => entry && setHoveredCountry(entry.country)}
                     onMouseLeave={() => setHoveredCountry(null)}
@@ -607,21 +447,15 @@ export default function SpaceRace() {
                   />
                 ));
               })}
-
-              {/* Latitude lines */}
-              {[-60,-30,0,30,60].map(lat => {
-                const y = ((90 - lat) / 180) * 440;
-                return <line key={lat} x1="0" y1={y} x2="960" y2={y}
-                  stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />;
-              })}
-              {/* Longitude lines */}
-              {[-120,-60,0,60,120].map(lng => {
-                const x = ((lng + 180) / 360) * 960;
-                return <line key={lng} x1={x} y1="0" x2={x} y2="440"
-                  stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />;
-              })}
+              {[-60,-30,0,30,60].map(lat => (
+                <line key={lat} x1="0" y1={((90-lat)/180)*520} x2="960" y2={((90-lat)/180)*520}
+                  stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+              ))}
+              {[-120,-60,0,60,120].map(lng => (
+                <line key={lng} x1={((lng+180)/360)*960} y1="0" x2={((lng+180)/360)*960} y2="520"
+                  stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+              ))}
             </svg>
-
             {hoveredCountry && (
               <div className="sr-pad-tooltip">
                 <div className="spt-name">{hoveredCountry.flag} {hoveredCountry.name}</div>
@@ -632,7 +466,6 @@ export default function SpaceRace() {
             )}
           </div>
 
-          {/* LEGEND */}
           <div className="sr-legend">
             <div className="sr-section-label" style={{ marginBottom: 10 }}>COUNTRY KEY</div>
             <div className="legend-grid">
@@ -643,7 +476,7 @@ export default function SpaceRace() {
                   onClick={() => setSelected(selected === c.code ? null : c.code)}
                   style={selected === c.code ? { borderColor: c.color } : {}}
                 >
-                  <span className="legend-dot"  style={{ background: c.color }} />
+                  <span className="legend-dot" style={{ background: c.color }} />
                   <span className="legend-flag">{c.flag}</span>
                   <span className="legend-name">{c.name}</span>
                   <span className="legend-count" style={{ color: c.color }}>

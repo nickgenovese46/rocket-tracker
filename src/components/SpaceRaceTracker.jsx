@@ -52,7 +52,6 @@ export default function SpaceRaceTracker() {
     .catch(() => {});
 }, []);
 
-
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;

@@ -3,14 +3,6 @@ import { feature } from 'topojson-client';
 import { getAgencyCountryStats, getActiveLaunches } from '../services/api';
 import './SpaceRace.css';
 
-// ISO 3166-1 numeric codes for choropleth coloring
-const COUNTRY_NUMERIC = {
-  USA: 840, RUS: 643, CHN: 156, FRA: 250, GUF: 312,
-  IND: 356, JPN: 392, NZL: 554, KAZ: 398, IRN: 364,
-  KOR: 410, ISR: 376, AUS: 36,  PRK: 408, DEU: 276,
-  GBR: 826, ITA: 380, UKR: 804,
-};
-
 // country_code values from the agency objects in Launch Library 2 API
 const COUNTRIES = [
   { code: 'USA', name: 'United States',         flag: '🇺🇸', color: '#60A5FA', agencyCodes: ['USA'] },
@@ -47,32 +39,6 @@ const STAT_TABS = [
   { id: 'rate',     label: 'Success Rate'   },
   { id: 'upcoming', label: 'Upcoming'       },
 ];
-
-function project(lat, lng) {
-  const x = ((parseFloat(lng) + 180) / 360) * 100;
-  const y = ((90 - parseFloat(lat)) / 180) * 100;
-  return { x, y };
-}
-
-function latLngToPath(coordinates) {
-  return coordinates.map(ring => {
-    let d = '';
-    let prevX = null;
-    for (let i = 0; i < ring.length; i++) {
-      const x = ((parseFloat(ring[i][0]) + 180) / 360) * 960;
-      const y = ((90 - parseFloat(ring[i][1])) / 180) * 480;
-      // If x jumps more than half the map width, antimeridian crossing detected
-      // Start a new subpath instead of drawing a line across the map
-      if (i === 0 || (prevX !== null && Math.abs(x - prevX) > 480)) {
-        d += `M${x.toFixed(1)},${y.toFixed(1)}`;
-      } else {
-        d += `L${x.toFixed(1)},${y.toFixed(1)}`;
-      }
-      prevX = x;
-    }
-    return d + 'Z';
-  }).join(' ');
-}
 
 export default function SpaceRace() {
   const [agencies, setAgencies]         = useState([]);
@@ -348,12 +314,6 @@ export default function SpaceRace() {
                 const entry = colorMap[numId];
                 const geo   = feat.geometry;
                 if (!geo) return null;
-
-                // Reproject using pixel coords for 960×480
-                const toPixel = (lat, lng) => ({
-                  x: ((parseFloat(lng) + 180) / 360) * 960,
-                  y: ((90 - parseFloat(lat)) / 180) * 480,
-                });
 
                 const toPath = (coordinates) =>
                 coordinates.map(ring => {

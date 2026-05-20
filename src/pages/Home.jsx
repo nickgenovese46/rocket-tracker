@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { getUpcomingLaunches, clearCache } from '../services/api';
+import { getUpcomingLaunches} from '../services/api';
 import Countdown from '../components/Countdown';
 import LaunchCard from '../components/LaunchCard';
 import SpaceRaceTracker from '../components/SpaceRaceTracker';
@@ -69,15 +69,6 @@ useEffect(() => {
   const streamUrl  = nextLaunch?.vid_urls?.[0]?.url;
   const provider   = nextLaunch?.launch_service_provider;
   const pad        = nextLaunch?.pad;
-
-  async function requestNotifications() {
-  if (!notifySupported) return;
-  const permission = await Notification.requestPermission();
-  if (permission === 'granted') {
-    setNotifyEnabled(true);
-    scheduleNotifications(nextLaunch);
-  }
-}
 
 function scheduleNotifications(launch) {
   // Clear any existing timers
@@ -162,7 +153,7 @@ useEffect(() => {
 // Reschedule if launch changes
 useEffect(() => {
   if (notifyEnabled && nextLaunch) scheduleNotifications(nextLaunch);
-}, [nextLaunch?.id]);
+}, [nextLaunch, notifyEnabled]);
 
   if (loading) return <div className="page-state">Fetching launch data...</div>;
   if (error)   return (

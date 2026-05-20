@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
 import { getPreviousLaunches } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import './Archive.css';
@@ -43,55 +43,53 @@ useEffect(() => {
   const searchTimer = useRef(null);
   const navigate = useNavigate();
 
-  const fetchLaunches = useCallback((reset = false, searchArg = search, statusArg = statusFilter, companyArg = company, yearArg = year) => {
-    const offset = reset ? 0 : offsetRef.current;
-    setError(null);
-    if (reset) {
-      setLoading(true);
+  function fetchLaunches(reset = false, searchArg = search, statusArg = statusFilter, companyArg = company, yearArg = year) {
+  const offset = reset ? 0 : offsetRef.current;
+  setError(null);
+  if (reset) {
+    setLoading(true);
+    setLoadingMore(false);
+  } else {
+    setLoadingMore(true);
+  }
+
+  /*const statusParam =
+  statusArg === 'Success'
+    ? '&status=3'
+    : statusArg === 'Failure'
+    ? '&status=4'
+    : '';*/
+
+    const STATUS_MAP = {
+  Success: 3,
+  Failure: 4,
+};
+
+const statusParam = STATUS_MAP[statusArg]
+  ? `&status=${STATUS_MAP[statusArg]}`
+  : '';
+
+
+  const searchParam  = searchArg  ? `&search=${encodeURIComponent(searchArg)}` : '';
+  const companyParam = companyArg ? `&lsp__name=${encodeURIComponent(companyArg)}` : '';
+  const yearParam    = yearArg    ? `&net__gte=${yearArg}-01-01&net__lte=${yearArg}-12-31` : '';
+
+  getPreviousLaunches(LIMIT, offset, statusParam + searchParam + companyParam + yearParam)
+    .then(data => {
+      setLaunches(prev => reset ? data.results : [...prev, ...data.results]);
+      setTotal(data.count);
+      offsetRef.current = offset + LIMIT;
+      setLoading(false);
       setLoadingMore(false);
-    } else {
-      setLoadingMore(true);
-    }
+    })
+    .catch(err => {
+      setError(err.message || 'Failed to load launches');
+      setLoading(false);
+      setLoadingMore(false);
+    });
+}
 
-    const statusParam = statusArg && statusArg !== 'All' ? `&status__name=${encodeURIComponent(statusArg)}` : '';
-    const searchParam = searchArg ? `&search=${encodeURIComponent(searchArg)}` : '';
-    const companyParam = companyArg ? `&launch_service_provider__name=${encodeURIComponent(companyArg)}` : '';
-    const yearParam = yearArg ? `&net__gte=${yearArg}-01-01&net__lte=${yearArg}-12-31` : '';
-
-    getPreviousLaunches(LIMIT, offset, statusParam + searchParam + companyParam + yearParam)
-      .then(data => {
-        setLaunches(prev => reset ? data.results : [...prev, ...data.results]);
-        setTotal(data.count);
-        offsetRef.current = offset + LIMIT;
-        setLoading(false);
-        setLoadingMore(false);
-      })
-      .catch(err => {
-        setError(err.message || 'Failed to load launches');
-        setLoading(false);
-        setLoadingMore(false);
-      });
-  }, [search, statusFilter, company, year]);
-
-  useEffect(() => {
-    fetchLaunches(true);
-  }, []);
-
-  useEffect(() => {
-    fetch('https://ll.thespacedevs.com/2.2.0/launch/previous/?limit=1&ordering=net&mode=list')
-      .then(r => r.json())
-      .then(data => {
-        if (data.results?.[0]?.net) {
-          const oldest = new Date(data.results[0].net).getFullYear();
-          const newest = new Date().getFullYear();
-          setAvailableYears(Array.from({ length: newest - oldest + 1 }, (_, i) => newest - i));
-        }
-      })
-      .catch(() => {
-        const now = new Date().getFullYear();
-        setAvailableYears(Array.from({ length: 20 }, (_, i) => now - i));
-      });
-  }, []);
+  useEffect(() => { fetchLaunches(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Search handlers — no auto-fire on keystroke
   function handleSearch(val) {
