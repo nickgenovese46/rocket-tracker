@@ -13,7 +13,6 @@ export default function Home() {
   const [modalLaunch, setModalLaunch] = useState(null);
   const [streamOpen, setStreamOpen]   = useState(false);
   const [notifyEnabled, setNotifyEnabled]   = useState(false);
-    const [notifySupported] = useState('Notification' in window);
     const notifyTimers  = useRef([]);
     const statusPollRef = useRef(null);
     const [showNotifyModal, setShowNotifyModal]   = useState(false);

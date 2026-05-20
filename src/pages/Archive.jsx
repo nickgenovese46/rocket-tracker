@@ -53,22 +53,14 @@ useEffect(() => {
     setLoadingMore(true);
   }
 
-  /*const statusParam =
-  statusArg === 'Success'
-    ? '&status=3'
-    : statusArg === 'Failure'
-    ? '&status=4'
-    : '';*/
-
     const STATUS_MAP = {
-  Success: 3,
-  Failure: 4,
-};
+      Success: 3,
+      Failure: 4,
+    };
 
-const statusParam = STATUS_MAP[statusArg]
-  ? `&status=${STATUS_MAP[statusArg]}`
-  : '';
-
+    const statusParam = STATUS_MAP[statusArg]
+      ? `&status=${STATUS_MAP[statusArg]}`
+      : '';
 
   const searchParam  = searchArg  ? `&search=${encodeURIComponent(searchArg)}` : '';
   const companyParam = companyArg ? `&lsp__name=${encodeURIComponent(companyArg)}` : '';
