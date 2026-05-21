@@ -616,3 +616,38 @@
   font-family: var(--font);
 }
 .compare-btn:hover { border-color: var(--blue-light); color: var(--blue-light); }
+
+@media (max-width: 768px) {
+  .builder { padding: 16px 16px 60px; }
+
+  .steps {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .step {
+    flex: none;
+    width: calc(50% - 4px);
+    font-size: var(--text-xs);
+    padding: 8px 4px;
+  }
+
+  .builder-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-right {
+    order: -1;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .rocket-diagram { flex: 1; }
+  .readout { flex: 1; }
+
+  .option-grid { grid-template-columns: 1fr 1fr; }
+  .payload-grid { grid-template-columns: 1fr 1fr; }
+  .dest-grid { gap: 6px; }
+
+  .op-grid { grid-template-columns: 1fr; }
+}

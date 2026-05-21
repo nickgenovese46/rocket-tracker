@@ -556,3 +556,27 @@
   position: relative;
   z-index: 0;
 }
+
+@media (max-width: 768px) {
+  .home { padding: 0 16px 60px; }
+
+  .hero-top { padding: 24px 0 16px; }
+  .hero-title { font-size: var(--text-2xl); }
+
+  .hero-bottom {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 16px 0 32px;
+  }
+
+  .hero-right { width: 100%; }
+  .standby-panel { aspect-ratio: 16 / 9; }
+
+  .hd-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .cards-row { grid-template-columns: 1fr; }
+
+  .sr-stats-row { grid-template-columns: repeat(2, 1fr); }
+
+  .section-header { flex-direction: column; gap: 4px; }
+}

@@ -56,3 +56,24 @@
   color: var(--teal);
   font-weight: 600;
 }
+
+@media (max-width: 768px) {
+  .navbar { padding: 0 16px; }
+  .navbar-logo { margin-right: 16px; font-size: 14px; }
+
+  .navbar-links {
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .navbar-links::-webkit-scrollbar { display: none; }
+
+  .nav-link {
+    font-size: var(--text-xs);
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+
+  .live-text { display: none; }
+}

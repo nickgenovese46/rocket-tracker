@@ -314,3 +314,20 @@
   transition: opacity 0.15s;
 }
 .arc-agency-link:hover { opacity: 0.7; text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .archive { padding: 20px 16px 60px; }
+
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .search-wrap { min-width: 0; }
+  .filter-pills { flex-wrap: wrap; }
+  .view-toggle { align-self: flex-end; }
+
+  .filter-row-2 { flex-direction: column; }
+  .filter-select { width: 100%; }
+
+  .launches-grid { grid-template-columns: 1fr; }
+
+  .arc-header { flex-direction: column; gap: 6px; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
