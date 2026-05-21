@@ -376,7 +376,28 @@ useEffect(() => {
           <div className="notify-type-row">
             <button
               className={`notify-type-btn ${notifyType === 'email' ? 'active' : ''}`}
-              onClick={() => setNotifyType('email')}
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      contact: notifyContact,
+                      type: notifyType,
+                      launchId: nextLaunch.id,
+                      launchName: nextLaunch.name,
+                      launchNet: nextLaunch.net,
+                    }),
+                  });
+                  if (!response.ok) throw new Error('Subscribe failed');
+                } catch(e) {
+                  console.error('Subscription error:', e);
+                  // Still show confirmation to user — browser notifications still work
+                }
+                setNotifySubmitted(true);
+                setNotifyEnabled(true);
+                scheduleNotifications(nextLaunch);
+              }}
             >
               ✉ Email
             </button>

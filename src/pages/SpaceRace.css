@@ -126,7 +126,9 @@
   flex-direction: column;
   gap: 8px;
   padding-right: 4px;
-  /* max-height and overflow-y removed — show all countries */
+  max-height: 600px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
 }
 .lb-list::-webkit-scrollbar { width: 4px; }
 .lb-list::-webkit-scrollbar-track { background: transparent; }
@@ -408,3 +410,68 @@
 
   .lb-stat-val { font-size: var(--text-xl); }
 }
+
+.sr-selected-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.ssp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.ssp-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ssp-flag { font-size: var(--text-2xl); }
+
+.ssp-name {
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.ssp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ssp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ssp-val   { font-size: var(--text-xl); font-weight: 700; line-height: 1; }
+.ssp-label { font-size: var(--text-xs); color: var(--text-muted); letter-spacing: 0.5px; }
+
+.ssp-agencies { display: flex; flex-direction: column; gap: 6px; }
+
+.ssp-agencies-label {
+  font-size: var(--text-xs);
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.ssp-agency-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ssp-agency-name  { font-size: var(--text-sm); color: var(--text-secondary); }
+.ssp-agency-count { font-size: var(--text-sm); font-weight: 700; }

@@ -1,5 +1,5 @@
 let cache = { data: null, ts: 0 };
-const TTL = 5 * 60 * 1000; // 5 minutes — upcoming launches change often
+const TTL = 3 * 60 * 1000; // 5 minutes — upcoming launches change often
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

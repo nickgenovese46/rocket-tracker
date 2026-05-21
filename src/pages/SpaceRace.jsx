@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { feature } from 'topojson-client';
 import { getAgencyCountryStats, getActiveLaunches } from '../services/api';
 import './SpaceRace.css';
@@ -147,6 +147,15 @@ export default function SpaceRace() {
   const globalSuccess   = countryStats.reduce((s, c) => s + c.successful, 0);
   const globalRate      = globalTotal > 0 ? Math.round((globalSuccess / globalTotal) * 100) : 0;
   const totalAgencies   = agencies.length;
+  const listRef = useRef(null);
+
+  <div className="lb-list" ref={listRef}></div>
+
+  useEffect(() => {
+  if (!selected || !listRef.current) return;
+  const card = listRef.current.querySelector('.lb-selected');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}, [selected]);
 
   if (loading) return <div className="page-state">Loading Space Race data...</div>;
 
@@ -296,6 +305,71 @@ export default function SpaceRace() {
 
         {/* RIGHT — MAP + LEGEND */}
         <div className="sr-right">
+            {selectedCountry && (
+  <div className="sr-selected-panel" style={{ borderColor: selectedCountry.color }}>
+    <div className="ssp-header">
+      <div className="ssp-title">
+        <span className="ssp-flag">{selectedCountry.flag}</span>
+        <span className="ssp-name" style={{ color: selectedCountry.color }}>
+          {selectedCountry.name}
+        </span>
+      </div>
+      <button className="sr-clear-btn" onClick={() => setSelected(null)}>✕</button>
+    </div>
+
+    <div className="ssp-stats">
+      <div className="ssp-stat">
+        <span className="ssp-val" style={{ color: selectedCountry.color }}>
+          {selectedCountry.total.toLocaleString()}
+        </span>
+        <span className="ssp-label">Total launches</span>
+      </div>
+      <div className="ssp-stat">
+        <span className="ssp-val" style={{ color: selectedCountry.color }}>
+          {selectedCountry.successful.toLocaleString()}
+        </span>
+        <span className="ssp-label">Successful</span>
+      </div>
+      <div className="ssp-stat">
+        <span className="ssp-val" style={{ color: selectedCountry.color }}>
+          {selectedCountry.rate}%
+        </span>
+        <span className="ssp-label">Success rate</span>
+      </div>
+      <div className="ssp-stat">
+        <span className="ssp-val" style={{ color: selectedCountry.color }}>
+          {selectedCountry.upcomingCount}
+        </span>
+        <span className="ssp-label">Upcoming</span>
+      </div>
+    </div>
+
+    {selectedCountry.topAgencies.length > 0 && (
+      <div className="ssp-agencies">
+        <div className="ssp-agencies-label">TOP AGENCIES</div>
+        {selectedCountry.topAgencies.map(a => (
+          <div key={a.id} className="ssp-agency-row">
+            <span className="ssp-agency-name">{a.name}</span>
+            <span className="ssp-agency-count" style={{ color: selectedCountry.color }}>
+              {(a.total_launch_count || 0).toLocaleString()}
+            </span>
+          </div>
+        ))}
+        {selectedCountry.topAgencies[0]?.website && (
+          <a
+            href={selectedCountry.topAgencies[0].website}
+            target="_blank"
+            rel="noreferrer"
+            className="lb-link"
+            style={{ color: selectedCountry.color, marginTop: 8, display: 'inline-block' }}
+          >
+            Agency website ↗
+          </a>
+        )}
+      </div>
+    )}
+  </div>
+)}
           <div className="sr-map-wrap">
             <div className="sr-map-label">
               {selected

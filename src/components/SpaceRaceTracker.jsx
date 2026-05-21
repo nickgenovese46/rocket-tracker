@@ -1,56 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getAgencies } from '../services/api';
 import './SpaceRaceTracker.css';
 
-const COLORS = ['#3B82F6','#10D9A8','#F59E0B','#6D5FD8','#EF4444','#60A5FA'];
+const COLORS = ['#3B82F6', '#10D9A8', '#F59E0B', '#6D5FD8', '#EF4444', '#60A5FA'];
 
 const STAT_CARDS = [
-  { label: 'LAUNCHES IN 2026', value: '88',  color: 'var(--text-primary)' },
-  { label: 'SUCCESS RATE',     value: '94%', color: 'var(--teal)'         },
-  { label: 'TOTAL PAYLOAD',    value: '312t', color: 'var(--amber)'       },
-  { label: 'OBJECTS IN ORBIT', value: '9,800+', color: 'var(--purple)'   },
+  { label: 'LAUNCHES IN 2026', value: '88', color: 'var(--text-primary)' },
+  { label: 'SUCCESS RATE', value: '94%', color: 'var(--teal)' },
+  { label: 'TOTAL PAYLOAD', value: '312t', color: 'var(--amber)' },
+  { label: 'OBJECTS IN ORBIT', value: '9,800+', color: 'var(--purple)' },
 ];
 
 export default function SpaceRaceTracker() {
   const [agencies, setAgencies] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    getAgencies()
-      .then(data => {
-        const chartData = data
-          .filter(a => a.launch_library_url)
-          .map(a => ({
-            name:       a.abbrev || a.name,
-            launches:   a.total_launch_count || 0,
-            website:    a.website,
-          }))
-          .sort((a, b) => b.launches - a.launches)
-          .slice(0, 6);
-        setAgencies(chartData);
-      })
-      .catch(() => {});
-  }, []);
+  const fetchAgencies = useCallback(async (forceFresh = false) => {
+    setIsRefreshing(true);
+    try {
+      // Clear client-side cache when forcing a fresh fetch
+      if (forceFresh) {
+        try {
+          sessionStorage.removeItem('agencies');
+        } catch (e) {}
+      }
 
-  useEffect(() => {
-  // Always clear agency cache on mount so SpaceRaceTracker 
-  // reflects the latest launch counts
-  try { sessionStorage.removeItem('agencies'); } catch(e) {}
-  getAgencies()
-    .then(data => {
+      const data = await getAgencies();
+
       const chartData = data
         .filter(a => a.launch_library_url)
         .map(a => ({
-          name:       a.abbrev || a.name,
-          launches:   a.total_launch_count || 0,
-          website:    a.website,
+          name: a.abbrev || a.name,
+          launches: a.total_launch_count || 0,
+          website: a.website,
         }))
         .sort((a, b) => b.launches - a.launches)
         .slice(0, 6);
+
       setAgencies(chartData);
-    })
-    .catch(() => {});
-}, []);
+
+      // Use timestamp from API if available
+      if (data._timestamp) {
+        setLastUpdated(new Date(data._timestamp));
+      } else {
+        setLastUpdated(new Date());
+      }
+    } catch (err) {
+      console.error('Failed to fetch agencies:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Initial load - force fresh data on mount
+  useEffect(() => {
+    fetchAgencies(true);
+  }, [fetchAgencies]);
+
+  // Auto-refresh every 3 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAgencies(false);
+    }, 3 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [fetchAgencies]);
 
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload?.length) return null;
@@ -74,10 +90,22 @@ export default function SpaceRaceTracker() {
       <div className="stat-cards">
         {STAT_CARDS.map(s => (
           <div key={s.label} className="stat-card">
-            <span className="stat-val" style={{ color: s.color }}>{s.value}</span>
+            <span className="stat-val" style={{ color: s.color }}>
+              {s.value}
+            </span>
             <span className="stat-label">{s.label}</span>
           </div>
         ))}
+      </div>
+
+      {/* Freshness indicator */}
+      <div className="freshness-indicator">
+        {lastUpdated && (
+          <>
+            Last updated: {lastUpdated.toLocaleTimeString()}
+            {isRefreshing && ' • Refreshing...'}
+          </>
+        )}
       </div>
 
       {/* BAR CHART */}
@@ -104,6 +132,15 @@ export default function SpaceRaceTracker() {
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* Manual Refresh Button */}
+      <button 
+        onClick={() => fetchAgencies(true)}
+        disabled={isRefreshing}
+        className="refresh-button"
+      >
+        ↻ Refresh Launch Data
+      </button>
     </div>
   );
 }
