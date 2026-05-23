@@ -79,3 +79,12 @@
   color: var(--text-secondary);
 }
 .lc-btn.secondary:hover { border-color: var(--text-muted); color: var(--text-primary); }
+
+@media (max-width: 480px) {
+  .launch-card { padding: 16px; }
+  .lc-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .lc-time { text-align: left; white-space: normal; }
+}

@@ -1,24 +1,32 @@
-let cache = { data: null, ts: 0 };
+import { allowRequest, cachedLaunchLibrary, sendApiError, setApiHeaders } from './_lib/launchLibrary.js';
+
+const cache = {};
 const TTL = 60 * 60 * 1000;
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  setApiHeaders(res, 3600);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  const rate = allowRequest(req, { max: 90 });
+  if (!rate.allowed) {
+    res.setHeader('Retry-After', rate.retryAfter);
+    return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+  }
+
   const { offset = 0 } = req.query;
   const key = `agencies_${offset}`;
 
-  if (cache[key]?.data && Date.now() - cache[key].ts < TTL) {
-    return res.status(200).json(cache[key].data);
-  }
   try {
-    const r = await fetch(
-      `https://ll.thespacedevs.com/2.2.0/agencies/?limit=100&offset=${offset}&ordering=-total_launch_count&mode=detailed`
+    const { data, cacheStatus } = await cachedLaunchLibrary(
+      cache,
+      key,
+      TTL,
+      '/agencies/',
+      { limit: 100, offset, ordering: '-total_launch_count', mode: 'detailed' },
+      { staleTtl: 24 * 60 * 60 * 1000 }
     );
-    if (r.status === 429) return res.status(429).json({ error: 'Upstream rate limit' });
-    const data = await r.json();
-    if (!cache[key]) cache[key] = {};
-    cache[key] = { data, ts: Date.now() };
-    res.status(200).json(data);
+    res.setHeader('X-Cache-Status', cacheStatus);
+    return res.status(200).json(data);
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    return sendApiError(res, e);
   }
 }

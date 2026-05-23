@@ -2,9 +2,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getUpcomingLaunches} from '../services/api';
 import Countdown from '../components/Countdown';
 import LaunchCard from '../components/LaunchCard';
-import SpaceRaceTracker from '../components/SpaceRaceTracker';
+import SpaceRaceTracker from '../components/SpaceRaceTracker.jsx';
 import StarField from '../components/StarField';
 import './Home.css';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Home() {
   const [launches, setLaunches]       = useState([]);
@@ -17,8 +19,10 @@ export default function Home() {
     const statusPollRef = useRef(null);
     const [showNotifyModal, setShowNotifyModal]   = useState(false);
 const [notifyContact, setNotifyContact]       = useState('');
-const [notifyType, setNotifyType]             = useState('email'); // 'email' | 'sms'
+const [notifyType, setNotifyType]             = useState('email');
 const [notifySubmitted, setNotifySubmitted]   = useState(false);
+const [notifySubmitting, setNotifySubmitting] = useState(false);
+const [notifyError, setNotifyError]           = useState('');
 
   useEffect(() => {
     const fetchLaunches = async () => {
@@ -69,7 +73,43 @@ useEffect(() => {
   const provider   = nextLaunch?.launch_service_provider;
   const pad        = nextLaunch?.pad;
 
+async function submitNotification() {
+  const contact = notifyContact.trim();
+  if (!EMAIL_RE.test(contact)) {
+    setNotifyError('Enter a valid email address.');
+    return;
+  }
+
+  setNotifySubmitting(true);
+  setNotifyError('');
+
+  try {
+    const response = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contact,
+        type: notifyType,
+        launchId: nextLaunch.id,
+        launchName: nextLaunch.name,
+        launchNet: nextLaunch.net,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'Subscription failed');
+
+    setNotifySubmitted(true);
+    setNotifyEnabled(true);
+    scheduleNotifications(nextLaunch);
+  } catch(e) {
+    setNotifyError(e.message || 'Subscription failed. Please try again.');
+  } finally {
+    setNotifySubmitting(false);
+  }
+}
+
 function scheduleNotifications(launch) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
   // Clear any existing timers
   notifyTimers.current.forEach(t => clearTimeout(t));
   notifyTimers.current = [];
@@ -116,7 +156,7 @@ function scheduleNotifications(launch) {
         return;
       }
       try {
-        const res  = await fetch(`https://ll.thespacedevs.com/2.2.0/launch/previous/?limit=5&mode=normal`);
+        const res  = await fetch('/api/previous?limit=5&offset=0');
         const data = await res.json();
         const result = data.results?.find(l => l.id === launch.id);
         if (result) {
@@ -270,6 +310,7 @@ useEffect(() => {
                   setNotifySubmitted(false);
                   setNotifyContact('');
                 } else {
+                  setNotifyError('');
                   setShowNotifyModal(true);
                 }
               }}
@@ -376,36 +417,16 @@ useEffect(() => {
           <div className="notify-type-row">
             <button
               className={`notify-type-btn ${notifyType === 'email' ? 'active' : ''}`}
-              onClick={async () => {
-                try {
-                  const response = await fetch('/api/subscribe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      contact: notifyContact,
-                      type: notifyType,
-                      launchId: nextLaunch.id,
-                      launchName: nextLaunch.name,
-                      launchNet: nextLaunch.net,
-                    }),
-                  });
-                  if (!response.ok) throw new Error('Subscribe failed');
-                } catch(e) {
-                  console.error('Subscription error:', e);
-                  // Still show confirmation to user — browser notifications still work
-                }
-                setNotifySubmitted(true);
-                setNotifyEnabled(true);
-                scheduleNotifications(nextLaunch);
-              }}
+              onClick={() => setNotifyType('email')}
             >
               ✉ Email
             </button>
             <button
               className={`notify-type-btn ${notifyType === 'sms' ? 'active' : ''}`}
-              onClick={() => setNotifyType('sms')}
+              disabled
+              title="SMS is not connected yet"
             >
-              📱 SMS
+              📱 SMS Soon
             </button>
           </div>
 
@@ -415,8 +436,12 @@ useEffect(() => {
             type={notifyType === 'email' ? 'email' : 'tel'}
             placeholder={notifyType === 'email' ? 'your@email.com' : '+1 (555) 000-0000'}
             value={notifyContact}
-            onChange={e => setNotifyContact(e.target.value)}
+            onChange={e => {
+              setNotifyContact(e.target.value);
+              setNotifyError('');
+            }}
           />
+          {notifyError && <div className="notify-error">{notifyError}</div>}
 
           <div className="notify-what">
             <div className="nw-title">YOU WILL RECEIVE</div>
@@ -426,21 +451,16 @@ useEffect(() => {
 
           <div className="notify-disclaimer">
             Notifications are for this launch only and will not be used for marketing.
-            SMS delivery powered by Twilio. Email powered by Resend.
+            Email delivery is powered by Resend and subscription storage by Supabase.
           </div>
 
           <button
             className="next-btn"
             style={{ width: '100%', marginTop: 16 }}
-            disabled={!notifyContact}
-            onClick={() => {
-              // UI complete — backend subscription wired in Phase 6
-              setNotifySubmitted(true);
-              setNotifyEnabled(true);
-              scheduleNotifications(nextLaunch); // browser fallback still runs
-            }}
+            disabled={!notifyContact || notifySubmitting}
+            onClick={submitNotification}
           >
-            Subscribe to notifications
+            {notifySubmitting ? 'Subscribing...' : 'Subscribe to email notifications'}
           </button>
         </>
       )}
@@ -468,4 +488,3 @@ function HeroStat({ label, value }) {
     </div>
   );
 }
-

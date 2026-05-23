@@ -3,6 +3,7 @@
 // Either way, the proxy handles caching and rate limiting server-side
 
 const SESSION_TTL = 60 * 60 * 1000;
+const REQUEST_TIMEOUT = 12000;
 
 function getCached(key) {
   try {
@@ -24,18 +25,44 @@ export function clearCache(key) {
   try { sessionStorage.removeItem(key); } catch {}
 }
 
-async function proxyFetch(path, cacheKey) {
+async function fetchWithTimeout(path) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+  try {
+    return await fetch(path, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function proxyFetch(path, cacheKey, options = {}) {
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  const res = await fetch(path);
-  if (res.status === 429) throw new Error('API rate limit reached — please wait a few minutes and refresh');
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  let lastError;
+  const attempts = options.attempts || 2;
 
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  setCache(cacheKey, data);
-  return data;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const res = await fetchWithTimeout(path);
+      if (res.status === 429) throw new Error('Launch data is temporarily rate limited. Please try again in a minute.');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setCache(cacheKey, data);
+      return data;
+    } catch (error) {
+      lastError = error;
+      if (error.name === 'AbortError') {
+        lastError = new Error('Launch data timed out. Please try again.');
+      }
+      if (attempt === attempts - 1) break;
+      await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
 }
 
 export async function getUpcomingLaunches() {
@@ -67,16 +94,17 @@ export async function getActiveLaunches() {
 }
 
 export async function getAgencyCountryStats() {
-  const [p1, p2, p3] = await Promise.all([
-    proxyFetch('/api/agencies?offset=0',   'agency_stats_0'),
-    proxyFetch('/api/agencies?offset=100', 'agency_stats_100'),
-    proxyFetch('/api/agencies?offset=200', 'agency_stats_200'),
-  ]);
-  const all = [
-    ...(p1.results || []),
-    ...(p2.results || []),
-    ...(p3.results || []),
-  ];
+  const all = [];
+  for (const offset of [0, 100, 200]) {
+    try {
+      const page = await proxyFetch(`/api/agencies?offset=${offset}`, `agency_stats_${offset}`);
+      all.push(...(page.results || []));
+      if (!page.next) break;
+    } catch (error) {
+      if (offset === 0) throw error;
+      break;
+    }
+  }
   return all.filter(a => (a.total_launch_count || 0) > 0);
 }
 

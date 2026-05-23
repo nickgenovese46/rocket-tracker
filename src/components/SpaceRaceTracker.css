@@ -23,7 +23,7 @@
 .stat-val {
   font-size: 26px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
 }
 
 .stat-label {
@@ -49,3 +49,25 @@
 .tt-name { color: var(--text-primary); font-weight: 600; margin-bottom: 3px; }
 .tt-val  { color: var(--text-secondary); }
 .tt-link { display: block; color: var(--blue-light); margin-top: 6px; font-size: 11px; }
+
+@media (max-width: 768px) {
+  .stat-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-card {
+    min-width: 0;
+    padding: 16px 14px;
+  }
+
+  .stat-val {
+    font-size: 24px;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 420px) {
+  .stat-cards {
+    grid-template-columns: 1fr;
+  }
+}

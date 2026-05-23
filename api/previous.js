@@ -1,56 +1,50 @@
+import { allowRequest, cachedLaunchLibrary, sendApiError, setApiHeaders } from './_lib/launchLibrary.js';
+
 const cache = {};
-const inFlight = {};
 
 // Historical data (offset > 0) barely changes — cache for 6 hours
 // Recent data (offset 0) updates more — cache for 1 hour  
 function getTTL(offset) {
   return parseInt(offset) > 100
-    ? 6 * 60 * 60 * 1000   // 6 hours for older pages
+    ? 24 * 60 * 60 * 1000   // 24 hours for older pages
     : 60 * 60 * 1000;       // 1 hour for recent page
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  setApiHeaders(res, 3600);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  const rate = allowRequest(req, { max: 90 });
+  if (!rate.allowed) {
+    res.setHeader('Retry-After', rate.retryAfter);
+    return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+  }
+
   const { limit = 20, offset = 0, extra = '' } = req.query;
   const key = `prev_${limit}_${offset}_${extra}`;
   const ttl = getTTL(offset);
 
-  // Return cached if still fresh
-  if (cache[key] && Date.now() - cache[key].ts < ttl) {
-    return res.status(200).json(cache[key].data);
-  }
-
-  // Deduplicate — if same request is already in flight, wait for it
-  if (inFlight[key]) {
-    try {
-      const data = await inFlight[key];
-      return res.status(200).json(data);
-    } catch(e) {
-      return res.status(500).json({ error: e.message });
-    }
-  }
-
-  // Make the request and share it with any concurrent callers
-  const fetchPromise = fetch(
-    `https://ll.thespacedevs.com/2.2.0/launch/previous/?limit=${limit}&offset=${offset}&mode=normal&ordering=-net${extra}`
-  ).then(async r => {
-    if (r.status === 429) throw new Error('rate_limited');
-    if (!r.ok) throw new Error(`API error ${r.status}`);
-    return r.json();
-  });
-
-  inFlight[key] = fetchPromise;
-
   try {
-    const data = await fetchPromise;
-    cache[key] = { data, ts: Date.now() };
-    delete inFlight[key];
+    const extraParams = new URLSearchParams(String(extra).replace(/^\?/, '').replace(/^&/, ''));
+    const params = {
+      limit,
+      offset,
+      mode: 'normal',
+      ordering: '-net',
+    };
+    extraParams.forEach((value, paramKey) => {
+      params[paramKey] = value;
+    });
+    const { data, cacheStatus } = await cachedLaunchLibrary(
+      cache,
+      key,
+      ttl,
+      '/launch/previous/',
+      params,
+      { staleTtl: ttl * 4 }
+    );
+    res.setHeader('X-Cache-Status', cacheStatus);
     return res.status(200).json(data);
   } catch(e) {
-    delete inFlight[key];
-    if (e.message === 'rate_limited') {
-      return res.status(429).json({ error: 'API rate limit reached — please wait a moment and refresh' });
-    }
-    return res.status(500).json({ error: e.message });
+    return sendApiError(res, e);
   }
 }

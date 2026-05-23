@@ -1,20 +1,29 @@
-let cache = { data: null, ts: 0 };
+import { allowRequest, cachedLaunchLibrary, sendApiError, setApiHeaders } from './_lib/launchLibrary.js';
+
+const cache = {};
 const TTL = 24 * 60 * 60 * 1000; // 24 hours — pads rarely change
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  if (cache.data && Date.now() - cache.ts < TTL) {
-    return res.status(200).json(cache.data);
+  setApiHeaders(res, 86400);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  const rate = allowRequest(req, { max: 90 });
+  if (!rate.allowed) {
+    res.setHeader('Retry-After', rate.retryAfter);
+    return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
   }
+
   try {
-    const r = await fetch(
-      'https://ll.thespacedevs.com/2.2.0/pad/?limit=100'
+    const { data, cacheStatus } = await cachedLaunchLibrary(
+      cache,
+      'pads_100',
+      TTL,
+      '/pad/',
+      { limit: 100 },
+      { staleTtl: 7 * 24 * 60 * 60 * 1000 }
     );
-    if (r.status === 429) return res.status(429).json({ error: 'Upstream rate limit' });
-    const data = await r.json();
-    cache = { data, ts: Date.now() };
-    res.status(200).json(data);
+    res.setHeader('X-Cache-Status', cacheStatus);
+    return res.status(200).json(data);
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    return sendApiError(res, e);
   }
 }

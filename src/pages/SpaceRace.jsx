@@ -16,6 +16,11 @@ const COUNTRIES = [
   { code: 'IRN', name: 'Iran',                   flag: '🇮🇷', color: '#F472B6', agencyCodes: ['IRN'] },
   { code: 'ISR', name: 'Israel',                 flag: '🇮🇱', color: '#818CF8', agencyCodes: ['ISR'] },
   { code: 'AUS', name: 'Australia',              flag: '🇦🇺', color: '#C084FC', agencyCodes: ['AUS'] },
+  { code: 'CAN', name: 'Canada',                 flag: '🇨🇦', color: '#F43F5E', agencyCodes: ['CAN'] },
+  { code: 'BRA', name: 'Brazil',                 flag: '🇧🇷', color: '#84CC16', agencyCodes: ['BRA'] },
+  { code: 'KAZ', name: 'Kazakhstan',             flag: '🇰🇿', color: '#38BDF8', agencyCodes: ['KAZ'] },
+  { code: 'PRK', name: 'North Korea',            flag: '🇰🇵', color: '#F97316', agencyCodes: ['PRK'] },
+  { code: 'UAE', name: 'United Arab Emirates',   flag: '🇦🇪', color: '#10B981', agencyCodes: ['UAE'] },
 ];
 
 // Numeric IDs for each country group on the map
@@ -31,6 +36,11 @@ const COUNTRY_GROUP_NUMERICS = {
   IRN: [364],
   ISR: [376],
   AUS: [36],
+  CAN: [124],
+  BRA: [76],
+  KAZ: [398],
+  PRK: [408],
+  UAE: [784],
 };
 
 const STAT_TABS = [
@@ -38,6 +48,7 @@ const STAT_TABS = [
   { id: 'success',  label: 'Successful'     },
   { id: 'rate',     label: 'Success Rate'   },
   { id: 'upcoming', label: 'Upcoming'       },
+  { id: 'agencies', label: 'Agencies'        },
 ];
 
 export default function SpaceRace() {
@@ -45,6 +56,7 @@ export default function SpaceRace() {
   const [upcoming, setUpcoming]         = useState([]);
   const [geoFeatures, setGeoFeatures]   = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
   const [selected, setSelected]         = useState(null);
   const [statTab, setStatTab]           = useState('total');
   const [hoveredCountry, setHoveredCountry] = useState(null);
@@ -62,13 +74,26 @@ export default function SpaceRace() {
           .catch(() => {});
       });
 
-    Promise.all([getAgencyCountryStats(), getActiveLaunches()])
-      .then(([agencyData, upcomingData]) => {
-        setAgencies(agencyData);
-        setUpcoming(upcomingData);
+    Promise.allSettled([getAgencyCountryStats(), getActiveLaunches()])
+      .then(([agencyResult, upcomingResult]) => {
+        if (agencyResult.status === 'rejected') {
+          setError(agencyResult.reason?.message || 'Space Race data is temporarily unavailable.');
+          setAgencies([]);
+        } else {
+          setAgencies(agencyResult.value);
+        }
+        if (upcomingResult.status === 'fulfilled') {
+          setUpcoming(upcomingResult.value);
+        }
+        if (agencyResult.status === 'fulfilled') {
+          setError(null);
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(err => {
+        setError(err?.message || 'Space Race data is temporarily unavailable.');
+        setLoading(false);
+      });
   }, []);
 
   // Aggregate per country from agency records
@@ -95,8 +120,10 @@ export default function SpaceRace() {
       const topAgencies = [...matched]
         .sort((a, b) => (b.total_launch_count || 0) - (a.total_launch_count || 0))
         .slice(0, 5);
+      const activeAgencies = matched.filter(a => (a.total_launch_count || 0) > 0).length;
+      const topAgency = topAgencies[0];
 
-      return { ...country, total, successful, rate, upcomingCount, topAgencies };
+      return { ...country, total, successful, rate, upcomingCount, topAgencies, topAgency, activeAgencies };
     }).filter(c => c.total > 0 || c.upcomingCount > 0);
   }, [agencies, upcoming]);
 
@@ -106,6 +133,7 @@ export default function SpaceRace() {
       if (statTab === 'success')  return b.successful    - a.successful;
       if (statTab === 'rate')     return b.rate          - a.rate;
       if (statTab === 'upcoming') return b.upcomingCount - a.upcomingCount;
+      if (statTab === 'agencies') return b.activeAgencies - a.activeAgencies;
       return 0;
     });
   }, [countryStats, statTab]);
@@ -115,6 +143,7 @@ export default function SpaceRace() {
     if (statTab === 'success')  return c.successful;
     if (statTab === 'rate')     return c.rate;
     if (statTab === 'upcoming') return c.upcomingCount;
+    if (statTab === 'agencies') return c.activeAgencies;
     return 0;
   }
 
@@ -147,9 +176,8 @@ export default function SpaceRace() {
   const globalSuccess   = countryStats.reduce((s, c) => s + c.successful, 0);
   const globalRate      = globalTotal > 0 ? Math.round((globalSuccess / globalTotal) * 100) : 0;
   const totalAgencies   = agencies.length;
+  const activeCountries = countryStats.length;
   const listRef = useRef(null);
-
-  <div className="lb-list" ref={listRef}></div>
 
   useEffect(() => {
   if (!selected || !listRef.current) return;
@@ -158,6 +186,12 @@ export default function SpaceRace() {
 }, [selected]);
 
   if (loading) return <div className="page-state">Loading Space Race data...</div>;
+  if (error) return (
+    <div className="page-state error">
+      ⚠ {error}
+      <button onClick={() => window.location.reload()} className="retry-btn">Try Again</button>
+    </div>
+  );
 
   return (
     <div className="spacerace">
@@ -184,6 +218,7 @@ export default function SpaceRace() {
         <StatBlock value={globalSuccess.toLocaleString()} label="Successful launches"        color="var(--teal)"       />
         <StatBlock value={`${globalRate}%`}               label="Global success rate"        color="var(--amber)"      />
         <StatBlock value={upcoming.length}                label="Upcoming launches"          color="var(--purple)"     />
+        <StatBlock value={activeCountries}                label="Countries tracked"          color="var(--red)"        />
       </div>
 
       <div className="sr-layout">
@@ -206,7 +241,7 @@ export default function SpaceRace() {
             RANKED BY {STAT_TABS.find(t => t.id === statTab)?.label.toUpperCase()}
           </div>
 
-          <div className="lb-list">
+          <div className="lb-list" ref={listRef}>
             {sorted.map((country, i) => {
               const val        = getVal(country);
               const isSelected = selected === country.code;
@@ -258,6 +293,11 @@ export default function SpaceRace() {
                         <span className="lb-sub-label">Rate</span>
                         <span className="lb-sub-val">{country.rate}%</span>
                       </span>
+                      <span className="lb-sub-sep">·</span>
+                      <span className="lb-sub-item">
+                        <span className="lb-sub-label">Agencies</span>
+                        <span className="lb-sub-val">{country.activeAgencies}</span>
+                      </span>
                       {country.upcomingCount > 0 && (
                         <>
                           <span className="lb-sub-sep">·</span>
@@ -293,6 +333,11 @@ export default function SpaceRace() {
                           >
                             Primary agency website ↗
                           </a>
+                        )}
+                        {country.topAgency && (
+                          <div className="lb-agency-note">
+                            Lead agency: {country.topAgency.name}
+                          </div>
                         )}
                       </div>
                     )}
@@ -341,6 +386,27 @@ export default function SpaceRace() {
           {selectedCountry.upcomingCount}
         </span>
         <span className="ssp-label">Upcoming</span>
+      </div>
+      <div className="ssp-stat">
+        <span className="ssp-val" style={{ color: selectedCountry.color }}>
+          {selectedCountry.activeAgencies}
+        </span>
+        <span className="ssp-label">Agencies</span>
+      </div>
+    </div>
+
+    <div className="ssp-compare">
+      <div>
+        <span className="ssp-compare-label">Share of tracked launches</span>
+        <strong style={{ color: selectedCountry.color }}>
+          {globalTotal > 0 ? `${((selectedCountry.total / globalTotal) * 100).toFixed(1)}%` : '0%'}
+        </strong>
+      </div>
+      <div>
+        <span className="ssp-compare-label">Leader</span>
+        <strong style={{ color: selectedCountry.color }}>
+          {selectedCountry.topAgency?.name || 'No agency data'}
+        </strong>
       </div>
     </div>
 

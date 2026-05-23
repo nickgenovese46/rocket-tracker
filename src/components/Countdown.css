@@ -38,3 +38,27 @@
   padding-bottom: 20px;
   font-weight: 300;
 }
+
+@media (max-width: 768px) {
+  .countdown {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .count-num {
+    font-size: 28px;
+    min-width: 0;
+    padding: 10px 8px;
+    letter-spacing: 1px;
+  }
+
+  .colon { display: none; }
+}
+
+@media (max-width: 420px) {
+  .count-num { font-size: 23px; }
+  .count-label { letter-spacing: 1px; }
+}
