@@ -112,3 +112,8 @@ export async function getCurrentYearLaunches() {
   const data = await proxyFetch('/api/yearlaunches', 'year_launches');
   return data.results || [];
 }
+
+// Add this after getCurrentYearLaunches()
+export async function getYearLaunchData() {
+  return proxyFetch('/api/yearlaunches', 'year_launches');
+}

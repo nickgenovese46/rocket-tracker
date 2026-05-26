@@ -72,11 +72,16 @@ useEffect(() => {
   const streamUrl  = nextLaunch?.vid_urls?.[0]?.url;
   const provider   = nextLaunch?.launch_service_provider;
   const pad        = nextLaunch?.pad;
+  const PHONE_RE = /^\+?[1-9]\d{7,14}$/;
 
 async function submitNotification() {
   const contact = notifyContact.trim();
-  if (!EMAIL_RE.test(contact)) {
+  if (notifyType === 'email' && !EMAIL_RE.test(contact)) {
     setNotifyError('Enter a valid email address.');
+    return;
+  }
+  if (notifyType === 'sms' && !PHONE_RE.test(contact.replace(/[\s\-().]/g, ''))) {
+    setNotifyError('Enter a valid phone number (e.g. +1 555 000 0000).');
     return;
   }
 
@@ -423,10 +428,9 @@ useEffect(() => {
             </button>
             <button
               className={`notify-type-btn ${notifyType === 'sms' ? 'active' : ''}`}
-              disabled
-              title="SMS is not connected yet"
+              onClick={() => setNotifyType('sms')}
             >
-              📱 SMS Soon
+              📱 SMS
             </button>
           </div>
 
@@ -460,7 +464,7 @@ useEffect(() => {
             disabled={!notifyContact || notifySubmitting}
             onClick={submitNotification}
           >
-            {notifySubmitting ? 'Subscribing...' : 'Subscribe to email notifications'}
+            {notifySubmitting ? 'Subscribing...' : `Subscribe to ${notifyType} notifications`}
           </button>
         </>
       )}

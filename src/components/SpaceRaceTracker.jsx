@@ -1,21 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { getAgencies } from '../services/api';
+import { getAgencies, getYearLaunchData } from '../services/api';
 import './SpaceRaceTracker.css';
 
 const COLORS = ['#3B82F6', '#10D9A8', '#F59E0B', '#6D5FD8', '#EF4444', '#60A5FA'];
-
-const STAT_CARDS = [
-  { label: 'LAUNCHES IN 2026', value: '88', color: 'var(--text-primary)' },
-  { label: 'SUCCESS RATE', value: '94%', color: 'var(--teal)' },
-  { label: 'TOTAL PAYLOAD', value: '312t', color: 'var(--amber)' },
-  { label: 'OBJECTS IN ORBIT', value: '9,800+', color: 'var(--purple)' },
-];
 
 export default function SpaceRaceTracker() {
   const [agencies, setAgencies] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [yearStats, setYearStats] = useState({ total: '—', successRate: '—' });
 
   const fetchAgencies = useCallback(async (forceFresh = false) => {
     setIsRefreshing(true);
@@ -54,6 +48,43 @@ export default function SpaceRaceTracker() {
     }
   }, []);
 
+  const fetchYearStats = useCallback(async (forceFresh = false) => {
+  if (forceFresh) {
+    try { sessionStorage.removeItem('year_launches'); } catch (e) {}
+  }
+  try {
+    const data = await getYearLaunchData();
+    const results = data.results || [];
+    const total = data.count ?? results.length;
+    const successCount = results.filter(l => {
+      const abbrev = l.status?.abbrev?.toLowerCase() || '';
+      const name   = l.status?.name?.toLowerCase()   || '';
+      return abbrev === 'success' || name.includes('success');
+    }).length;
+    const rate = results.length > 0
+      ? Math.round((successCount / results.length) * 100)
+      : 0;
+    setYearStats({ total: total.toLocaleString(), successRate: `${rate}%` });
+  } catch (err) {
+    console.error('Failed to fetch year stats:', err);
+  }
+}, []);
+
+// Update your initial load useEffect:
+useEffect(() => {
+  fetchAgencies(true);
+  fetchYearStats(true);
+}, [fetchAgencies, fetchYearStats]);
+
+// Update your auto-refresh useEffect:
+useEffect(() => {
+  const interval = setInterval(() => {
+    fetchAgencies(false);
+    fetchYearStats(false);
+  }, 3 * 60 * 1000);
+  return () => clearInterval(interval);
+}, [fetchAgencies, fetchYearStats]);
+
   // Initial load - force fresh data on mount
   useEffect(() => {
     fetchAgencies(true);
@@ -88,11 +119,14 @@ export default function SpaceRaceTracker() {
     <div className="space-race">
       {/* STAT CARDS */}
       <div className="stat-cards">
-        {STAT_CARDS.map(s => (
+        {[
+          { label: 'LAUNCHES IN 2026', value: yearStats.total,       color: 'var(--text-primary)' },
+          { label: 'SUCCESS RATE',     value: yearStats.successRate, color: 'var(--teal)'         },
+          { label: 'TOTAL PAYLOAD',    value: '312t',                color: 'var(--amber)'        },
+          { label: 'OBJECTS IN ORBIT', value: '9,800+',              color: 'var(--purple)'       },
+        ].map(s => (
           <div key={s.label} className="stat-card">
-            <span className="stat-val" style={{ color: s.color }}>
-              {s.value}
-            </span>
+            <span className="stat-val" style={{ color: s.color }}>{s.value}</span>
             <span className="stat-label">{s.label}</span>
           </div>
         ))}
@@ -135,7 +169,7 @@ export default function SpaceRaceTracker() {
 
       {/* Manual Refresh Button */}
       <button 
-        onClick={() => fetchAgencies(true)}
+        onClick={() => { fetchAgencies(true); fetchYearStats(true); }}
         disabled={isRefreshing}
         className="refresh-button"
       >
