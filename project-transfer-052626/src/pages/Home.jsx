@@ -15,15 +15,14 @@ export default function Home() {
   const [modalLaunch, setModalLaunch] = useState(null);
   const [streamOpen, setStreamOpen]   = useState(false);
   const [notifyEnabled, setNotifyEnabled]   = useState(false);
-  const notifyTimers  = useRef([]);
-  const statusPollRef = useRef(null);
-  const [showNotifyModal, setShowNotifyModal]   = useState(false);
-  const [notifyContact, setNotifyContact]       = useState('');
-  const [notifyType, setNotifyType]             = useState('email');
-  const [notifySubmitted, setNotifySubmitted]   = useState(false);
-  const [notifySubmitting, setNotifySubmitting] = useState(false);
-  const [notifyError, setNotifyError]           = useState('');
-  const [notifyScope, setNotifyScope] = useState('single');
+    const notifyTimers  = useRef([]);
+    const statusPollRef = useRef(null);
+    const [showNotifyModal, setShowNotifyModal]   = useState(false);
+const [notifyContact, setNotifyContact]       = useState('');
+const [notifyType, setNotifyType]             = useState('email');
+const [notifySubmitted, setNotifySubmitted]   = useState(false);
+const [notifySubmitting, setNotifySubmitting] = useState(false);
+const [notifyError, setNotifyError]           = useState('');
 
   useEffect(() => {
     const fetchLaunches = async () => {
@@ -85,44 +84,34 @@ async function submitNotification() {
     setNotifyError('Enter a valid phone number (e.g. +1 555 000 0000).');
     return;
   }
- 
+
   setNotifySubmitting(true);
   setNotifyError('');
- 
+
   try {
     const response = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contact,
-        type:       notifyType,
-        permanent:  notifyScope === 'permanent',
-        launchId:   nextLaunch.id,
+        type: notifyType,
+        launchId: nextLaunch.id,
         launchName: nextLaunch.name,
-        launchNet:  nextLaunch.net,
+        launchNet: nextLaunch.net,
       }),
     });
- 
     const payload = await response.json().catch(() => ({}));
- 
-    // 409 = already subscribed — show a friendly message, not a generic error
-    if (response.status === 409) {
-      setNotifyError(payload.error || 'You are already subscribed.');
-      return;
-    }
- 
     if (!response.ok) throw new Error(payload.error || 'Subscription failed');
- 
+
     setNotifySubmitted(true);
     setNotifyEnabled(true);
     scheduleNotifications(nextLaunch);
-  } catch (e) {
+  } catch(e) {
     setNotifyError(e.message || 'Subscription failed. Please try again.');
   } finally {
     setNotifySubmitting(false);
   }
 }
- 
 
 function scheduleNotifications(launch) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -137,47 +126,58 @@ function scheduleNotifications(launch) {
   const launchTime = new Date(launch.net).getTime();
   const now        = Date.now();
 
-// Launching soon — 30 minutes before
-const msToThirtyMin = launchTime - 30 * 60 * 1000 - now;
-if (msToThirtyMin > 0) {
-  notifyTimers.current.push(setTimeout(() => {
-    new Notification('ORBIT — Launching Soon', {
-      body: `${launch.name} is launching within the next 30 minutes.`,
-      icon: '/favicon.ico',
-    });
-  }, msToThirtyMin));
-}
+  // T-1 hour
+  const msToOneHour = launchTime - 60 * 60 * 1000 - now;
+  if (msToOneHour > 0) {
+    notifyTimers.current.push(setTimeout(() => {
+      new Notification('ORBIT — Launch in 1 Hour', {
+        body: `${launch.name} launches in approximately 1 hour.`,
+        icon: '/favicon.ico',
+      });
+    }, msToOneHour));
+  }
 
-// After launch NET + 5 min: start polling for success/failure
-const msToPostLaunch = launchTime - now + 5 * 60 * 1000;
-const startPoll = () => {
-  if (statusPollRef.current) return;
-  let attempts = 0;
-  statusPollRef.current = setInterval(async () => {
-    attempts++;
-    if (attempts > 60) { // poll for up to 30 minutes
-      clearInterval(statusPollRef.current);
-      statusPollRef.current = null;
-      return;
-    }
-    try {
-      const res  = await fetch('/api/previous?limit=5&offset=0');
-      const data = await res.json();
-      const result = data.results?.find(l => l.id === launch.id);
-      if (result) {
+  // T-1 minute
+  const msToOneMin = launchTime - 60 * 1000 - now;
+  if (msToOneMin > 0) {
+    notifyTimers.current.push(setTimeout(() => {
+      new Notification('ORBIT — T-Minus 1 Minute', {
+        body: `${launch.name} is launching in approximately 1 minute!`,
+        icon: '/favicon.ico',
+      });
+    }, msToOneMin));
+  }
+
+  // After launch NET + 5 min: start polling for success/failure
+  const msToPostLaunch = launchTime - now + 5 * 60 * 1000;
+  const startPoll = () => {
+    if (statusPollRef.current) return;
+    let attempts = 0;
+    statusPollRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > 24) { // poll for up to 12 minutes
         clearInterval(statusPollRef.current);
         statusPollRef.current = null;
-        const isSuccess = result.status?.name?.toLowerCase().includes('success');
-        new Notification(`ORBIT — ${launch.name}`, {
-          body: isSuccess
-            ? '🎉 Launch successful! Open ORBIT for details.'
-            : '💥 Launch failed. Open ORBIT for details.',
-          icon: '/favicon.ico',
-        });
+        return;
       }
-    } catch(e) {}
-  }, 30 * 1000);
-};
+      try {
+        const res  = await fetch('/api/previous?limit=5&offset=0');
+        const data = await res.json();
+        const result = data.results?.find(l => l.id === launch.id);
+        if (result) {
+          clearInterval(statusPollRef.current);
+          statusPollRef.current = null;
+          const isSuccess = result.status?.name?.toLowerCase().includes('success');
+          new Notification(`ORBIT — ${launch.name}`, {
+            body: isSuccess
+              ? '🎉 Launch successful! Open ORBIT for details.'
+              : '💥 Launch failed. Open ORBIT for details.',
+            icon: '/favicon.ico',
+          });
+        }
+      } catch(e) {}
+    }, 30 * 1000);
+  };
 
   if (msToPostLaunch > 0) {
     notifyTimers.current.push(setTimeout(startPoll, msToPostLaunch));
@@ -396,51 +396,29 @@ useEffect(() => {
           </div>
         </div>
       )}
-{showNotifyModal && (
+        {showNotifyModal && (
   <div className="modal-overlay" onClick={() => setShowNotifyModal(false)}>
     <div className="modal" onClick={e => e.stopPropagation()}>
       <button className="modal-close" onClick={() => setShowNotifyModal(false)}>✕</button>
 
       <div className="modal-eyebrow">LAUNCH NOTIFICATIONS</div>
-      <h2 className="modal-title">
-        {notifyScope === 'permanent' ? 'Notify me for all launches' : 'Notify me for this launch'}
-      </h2>
-      {notifyScope === 'single' && (
-        <p className="modal-sub" style={{ display: 'block', marginBottom: 16 }}>
-          {nextLaunch.name}
-        </p>
-      )}
+      <h2 className="modal-title">Notify me for this launch</h2>
+      <p className="modal-sub" style={{ display: 'block', marginBottom: 24 }}>
+        {nextLaunch.name}
+      </p>
 
       {notifySubmitted ? (
         <div className="notify-confirm">
           <div className="nc-icon">🔔</div>
           <div className="nc-title">You're subscribed</div>
           <div className="nc-body">
-            {notifyScope === 'permanent'
-              ? "We'll alert you T-1 minute before every upcoming launch and confirm each outcome."
-              : "We'll send you a T-1 minute alert and the launch outcome for this mission."}
+            We'll send you a message at T-1 minute before launch and again
+            once the outcome is confirmed.
           </div>
           <div className="nc-contact">{notifyContact}</div>
         </div>
       ) : (
         <>
-          {/* Single vs Permanent toggle */}
-          <div className="notify-type-row" style={{ marginBottom: 16 }}>
-            <button
-              className={`notify-type-btn ${notifyScope === 'single' ? 'active' : ''}`}
-              onClick={() => { setNotifyScope('single'); setNotifyError(''); }}
-            >
-              🚀 This launch
-            </button>
-            <button
-              className={`notify-type-btn ${notifyScope === 'permanent' ? 'active' : ''}`}
-              onClick={() => { setNotifyScope('permanent'); setNotifyError(''); }}
-            >
-              🔔 All launches
-            </button>
-          </div>
-
-          {/* Email vs SMS toggle */}
           <div className="notify-type-row">
             <button
               className={`notify-type-btn ${notifyType === 'email' ? 'active' : ''}`}
@@ -474,17 +452,11 @@ useEffect(() => {
             <div className="nw-title">YOU WILL RECEIVE</div>
             <div className="nw-item">⏱ T-1 minute alert with a link to the live stream</div>
             <div className="nw-item">🎯 Launch outcome — success or failure with details</div>
-            {notifyScope === 'permanent' && (
-              <div className="nw-item" style={{ color: 'var(--teal)', marginTop: 4 }}>
-                🔁 For every upcoming launch, automatically
-              </div>
-            )}
           </div>
 
           <div className="notify-disclaimer">
-            {notifyScope === 'permanent'
-              ? 'You can unsubscribe at any time by replying to any notification email. Powered by Resend and Supabase.'
-              : 'Notifications are for this launch only and will not be used for marketing. Powered by Resend and Supabase.'}
+            Notifications are for this launch only and will not be used for marketing.
+            Email delivery is powered by Resend and subscription storage by Supabase.
           </div>
 
           <button
@@ -493,18 +465,13 @@ useEffect(() => {
             disabled={!notifyContact || notifySubmitting}
             onClick={submitNotification}
           >
-            {notifySubmitting
-              ? 'Subscribing...'
-              : notifyScope === 'permanent'
-                ? 'Subscribe to all launches'
-                : `Subscribe to ${nextLaunch.name}`}
+            {notifySubmitting ? 'Subscribing...' : `Subscribe to ${notifyType} notifications`}
           </button>
         </>
       )}
     </div>
   </div>
 )}
-
     </div>
   );
 }

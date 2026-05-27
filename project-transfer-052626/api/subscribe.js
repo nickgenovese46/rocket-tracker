@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 
-const SITE_URL = process.env.SITE_URL || 'https://rocket-tracker-ruby.vercel.app/';
+const SITE_URL = process.env.SITE_URL || 'https://orbit-rocket-tracker.vercel.app';
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'ORBIT <onboarding@resend.dev>';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?[1-9]\d{7,14}$/;

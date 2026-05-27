@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import { fetchLaunchLibrary } from './_lib/launchLibrary.js';
 
-const SITE_URL = process.env.SITE_URL || 'https://rocket-tracker-ruby.vercel.app/';
+const SITE_URL = process.env.SITE_URL || 'https://orbit-rocket-tracker.vercel.app';
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'ORBIT <onboarding@resend.dev>';
 
 function configured() {
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
   );
   const resend = new Resend(process.env.RESEND_API_KEY);
   const now = new Date();
-  const minuteWindowEnd = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
+  const minuteWindowEnd = new Date(now.getTime() + 6 * 60 * 1000).toISOString();
   const nowIso = now.toISOString();
   const outcomeCutoff = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
   const results = { minuteSent: 0, outcomeSent: 0, errors: [] };
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
       await sendEmail(
         resend,
         row.contact,
-        `ORBIT — Launching Soon: ${row.launch_name}`,
+        `ORBIT — T-1 minute for ${row.launch_name}`,
         `
           <h2 style="color:#60A5FA;margin-bottom:8px;">T-1 minute</h2>
           <p style="color:#b3c0d4;line-height:1.7;">${launchName} is scheduled to launch in about one minute.</p>
