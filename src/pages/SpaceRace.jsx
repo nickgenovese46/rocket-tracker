@@ -276,10 +276,9 @@ useEffect(() => {
   if (!selected) { setCountryHistory([]); return; }
 
   const staticData = LAUNCH_HISTORY[selected] || {};
-  const firstYear = Math.min(...Object.keys(staticData).map(Number).filter(y => staticData[y] > 0), 2025);
 
   const rows = [];
-  for (let y = firstYear; y <= 2025; y++) {
+  for (let y = 1950; y <= 2025; y++) {
     rows.push({ year: y, count: staticData[y] || 0 });
   }
 

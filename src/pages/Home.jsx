@@ -417,8 +417,8 @@ useEffect(() => {
           <div className="nc-title">You're subscribed</div>
           <div className="nc-body">
             {notifyScope === 'permanent'
-              ? "We'll alert you T-1 minute before every upcoming launch and confirm each outcome."
-              : "We'll send you a T-1 minute alert and the launch outcome for this mission."}
+              ? "We'll alert you within an hour of every upcoming launch and confirm each outcome."
+              : "We'll send you an alert within the hour of launch and the launch outcome for this mission."}
           </div>
           <div className="nc-contact">{notifyContact}</div>
         </div>
