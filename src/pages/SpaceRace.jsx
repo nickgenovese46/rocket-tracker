@@ -275,48 +275,40 @@ export default function SpaceRace() {
 useEffect(() => {
   if (!selected) { setCountryHistory([]); return; }
 
-  // Build from hardcoded data
   const staticData = LAUNCH_HISTORY[selected] || {};
-
-  // Fill every year from 1950 to 2025 (0 for years with no launches)
   const firstYear = Math.min(...Object.keys(staticData).map(Number).filter(y => staticData[y] > 0), 2025);
+
   const rows = [];
-  for (let y = 1950; y <= 2025; y++) {
+  for (let y = firstYear; y <= 2025; y++) {
     rows.push({ year: y, count: staticData[y] || 0 });
   }
 
-  // Fetch live 2026 data and append
-fetch('/api/yearlaunches')
-  .then(r => r.json())
-  .then(data => {
-    const results = data.results || [];
-    const country = COUNTRIES.find(c => c.code === selected);
+  setHistoryLoading(true);
 
-    const count2026 = results.filter(l => {
-      // Try country_code on provider first
-      const providerCode = (l.launch_service_provider?.country_code || '').toUpperCase();
-      if (providerCode && country?.agencyCodes.some(ac => providerCode.includes(ac))) return true;
-
-      // Fall back to pad location country code
-      const padCode = (l.pad?.location?.country_code || '').toUpperCase();
-      if (padCode && country?.agencyCodes.some(ac => padCode.includes(ac))) return true;
-
-      // Fall back to agency name matching for major programs
-      const agencyName = (l.launch_service_provider?.name || '').toLowerCase();
-      if (selected === 'USA' && (agencyName.includes('spacex') || agencyName.includes('nasa') || agencyName.includes('rocket lab') || agencyName.includes('united launch') || agencyName.includes('blue origin'))) return true;
-      if (selected === 'CHN' && (agencyName.includes('casc') || agencyName.includes('china') || agencyName.includes('galactic energy') || agencyName.includes('landspace') || agencyName.includes('icefire'))) return true;
-      if (selected === 'RUS' && (agencyName.includes('roscosmos') || agencyName.includes('russian'))) return true;
-      if (selected === 'IND' && agencyName.includes('isro')) return true;
-      if (selected === 'JPN' && (agencyName.includes('jaxa') || agencyName.includes('mitsubishi') || agencyName.includes('space one'))) return true;
-      if (selected === 'EUR' && (agencyName.includes('ariane') || agencyName.includes('esa') || agencyName.includes('avio'))) return true;
-      if (selected === 'NZL' && agencyName.includes('rocket lab')) return true;
-
-      return false;
-    }).length;
-
-    setCountryHistory([...rows, { year: 2026, count: count2026 }]);
-  })
-  .catch(() => setCountryHistory(rows));
+  fetch('/api/yearlaunches')
+    .then(r => r.json())
+    .then(data => {
+      const results = data.results || [];
+      const country = COUNTRIES.find(c => c.code === selected);
+      const count2026 = results.filter(l => {
+        const providerCode = (l.launch_service_provider?.country_code || '').toUpperCase();
+        if (providerCode && country?.agencyCodes.some(ac => providerCode.includes(ac))) return true;
+        const padCode = (l.pad?.location?.country_code || '').toUpperCase();
+        if (padCode && country?.agencyCodes.some(ac => padCode.includes(ac))) return true;
+        const agencyName = (l.launch_service_provider?.name || '').toLowerCase();
+        if (selected === 'USA' && (agencyName.includes('spacex') || agencyName.includes('nasa') || agencyName.includes('rocket lab') || agencyName.includes('united launch') || agencyName.includes('blue origin'))) return true;
+        if (selected === 'CHN' && (agencyName.includes('casc') || agencyName.includes('china') || agencyName.includes('galactic energy') || agencyName.includes('landspace') || agencyName.includes('icefire'))) return true;
+        if (selected === 'RUS' && (agencyName.includes('roscosmos') || agencyName.includes('russian'))) return true;
+        if (selected === 'IND' && agencyName.includes('isro')) return true;
+        if (selected === 'JPN' && (agencyName.includes('jaxa') || agencyName.includes('mitsubishi') || agencyName.includes('space one'))) return true;
+        if (selected === 'EUR' && (agencyName.includes('ariane') || agencyName.includes('esa') || agencyName.includes('avio'))) return true;
+        if (selected === 'NZL' && agencyName.includes('rocket lab')) return true;
+        return false;
+      }).length;
+      setCountryHistory([...rows, { year: 2026, count: count2026 }]);
+    })
+    .catch(() => setCountryHistory(rows))
+    .finally(() => setHistoryLoading(false));
 }, [selected]);
 
   if (loading) return <div className="page-state">Loading Space Race data...</div>;
@@ -546,8 +538,10 @@ fetch('/api/yearlaunches')
 
     <div className="ssp-history">
       <div className="ssp-agencies-label">LAUNCHES OVER TIME</div>
-      {countryHistory.length > 0 ? (
-        <ResponsiveContainer width="100%" height={160}>
+      {historyLoading ? (
+  <div className="ssp-history-loading">Loading chart data...</div>
+) : countryHistory.length > 0 ? (
+  <ResponsiveContainer width="100%" height={160}>
           <LineChart data={countryHistory} margin={{ left: -20, right: 12, top: 4, bottom: 0 }}>
             <XAxis
               dataKey="year"
