@@ -61,7 +61,8 @@ useEffect(() => {
   };
   document.addEventListener('visibilitychange', handleVisibility);
 
-  return () => {
+  return (    
+  ) => {
     clearInterval(interval);
     document.removeEventListener('visibilitychange', handleVisibility);
   };
@@ -75,6 +76,8 @@ useEffect(() => {
   const pad        = nextLaunch?.pad;
   const PHONE_RE = /^\+?[1-9]\d{7,14}$/;
 
+  
+
 async function submitNotification() {
   const contact = notifyContact.trim();
   if (notifyType === 'email' && !EMAIL_RE.test(contact)) {
@@ -85,6 +88,8 @@ async function submitNotification() {
     setNotifyError('Enter a valid phone number (e.g. +1 555 000 0000).');
     return;
   }
+
+  
  
   setNotifySubmitting(true);
   setNotifyError('');

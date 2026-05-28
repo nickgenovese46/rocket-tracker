@@ -77,3 +77,177 @@
 
   .live-text { display: none; }
 }
+
+/* Wraps the LIVE indicator + ? button together on the right */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+ 
+/* Help button */
+.help-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.help-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+}
+ 
+/* Drawer container */
+.help-drawer {
+  position: fixed;
+  top: 60px;
+  right: 0;
+  width: 420px;
+  max-height: calc(100vh - 60px);
+  background: #0a1325;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 999;
+  animation: drawerSlideIn 0.22s ease;
+}
+@keyframes drawerSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+ 
+.help-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 22px 14px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+.help-drawer-title {
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.help-drawer-sub {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+}
+.help-drawer-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 6px;
+  line-height: 1;
+}
+.help-drawer-close:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+ 
+/* Page selector tabs */
+.help-drawer-tabs {
+  padding: 14px 16px 0;
+  flex-shrink: 0;
+}
+.help-tab {
+  width: 100%;
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 8px;
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  text-align: left;
+  transition: background 0.15s;
+}
+.help-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.help-tab.active {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.help-tab-icon {
+  font-size: 20px;
+}
+.help-tab-name {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 16px;
+  font-weight: 600;
+}
+.help-tab.active .help-tab-name {
+  color: white;
+}
+.help-tab-route {
+  color: rgba(255, 255, 255, 0.22);
+  font-size: 13px;
+  margin-top: 2px;
+}
+ 
+/* Tips panel */
+.help-drawer-body {
+  padding: 16px 18px 28px;
+}
+.help-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 0.5px solid;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.help-panel-label {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+.help-panel-summary {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.help-panel-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.help-tip {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.help-tip-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 0.5px solid;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.help-tip-text {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 15px;
+  line-height: 1.65;
+}
